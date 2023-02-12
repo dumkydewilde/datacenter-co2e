@@ -85,31 +85,42 @@ else:
     filtered_data = df
 
 options_in_range = [k for k,v in distance_lookup[current_dc].items() if v < calculate_latency_distance(latency)]
-current_emissions = filtered_data[filtered_data["dc_cq_id"] == current_dc].groupby(by=["dc_cq_id"])["co2e"].mean()[0]
-best_options_df = filtered_data[filtered_data["dc_cq_id"].isin(options_in_range)].groupby(by=["dc_cq_id"])["co2e"].mean().sort_values().reset_index()
-best_options_df["co2e_delta"] = current_emissions - best_options_df["co2e"]
-best_options_df["latency"] = best_options_df["dc_cq_id"].apply(lambda x: calculate_latency(distance_lookup[current_dc][x]))
-best_options_df = best_options_df[best_options_df["co2e_delta"] > 0]
-best_co2e_delta = best_options_df["co2e_delta"][0]
 
+if len(options_in_range) > 0:
+    current_emissions = filtered_data[filtered_data["dc_cq_id"] == current_dc].groupby(by=["dc_cq_id"])["co2e"].mean()[0]
+    best_options_df = filtered_data[filtered_data["dc_cq_id"].isin(options_in_range)].groupby(by=["dc_cq_id"])["co2e"].mean().sort_values().reset_index()
+    best_options_df["co2e_delta"] = current_emissions - best_options_df["co2e"]
+    best_options_df["latency"] = best_options_df["dc_cq_id"].apply(lambda x: calculate_latency(distance_lookup[current_dc][x]))
+    best_options_df = best_options_df[best_options_df["co2e_delta"] > 0]
 
-latency_co2e_fig = px.scatter(
-    best_options_df, 
-    title="Best alternatives",
-    x="latency", 
-    y="co2e", 
-    color="co2e_delta", 
-    color_continuous_scale = "RdYlGn",
-    hover_name="dc_cq_id"
-    )
+    if len(best_options_df) > 0:
+        best_co2e_delta = best_options_df["co2e_delta"][0]
 
-latency_co2e_fig.update_traces(textposition="bottom right")
+        best_alternative_name = best_options_df['dc_cq_id'][0]
 
+        latency_co2e_fig = px.scatter(
+            best_options_df, 
+            title="Best alternatives",
+            x="latency", 
+            y="co2e", 
+            color="co2e_delta", 
+            color_continuous_scale = "RdYlGn",
+            hover_name="dc_cq_id"
+            )
 
-st.plotly_chart(latency_co2e_fig)
+        st.plotly_chart(latency_co2e_fig)
+    else:
+        st.write("No better alternatives in range, increase latency to find alternatives.")
+        best_alternative_name = "(No better alternative in range)"
+        best_co2e_delta = 0
+
+else:
+    st.write("No alternatives in range, increase latency to find alternatives.")
+    best_alternative_name = "(No alternative in range)"
+    best_co2e_delta = 0
 
 st.write("## Potential Savings")
-st.write(f"Moving to datacenter: {best_options_df['dc_cq_id'][0]}")
+st.write(f"Moving to datacenter: {best_alternative_name}")
 l2, r2 = st.columns(2)
 with l2:
     num_inst = st.number_input("Number of instances", value=1, min_value=1)
