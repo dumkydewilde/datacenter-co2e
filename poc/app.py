@@ -4,9 +4,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import geopy.distance
+import os
 
 # data prep
-df = pd.read_json("instance_data.json")
+df = pd.read_json("poc/instance_data.json")
 df["lat"] = df["geo"].apply(lambda x: x["latitude"])
 df["lon"] = df["geo"].apply(lambda x: x["longitude"])
 df['co2e'] = df["emission_details"].apply(lambda x: x["co2e"])
@@ -48,7 +49,7 @@ def get_co2_equivalent(co2_kg, type="car_kilometers"):
 
 """
 # Data Center CO2 Emissions
-Compare data centers on CO2 emissions.
+Compare data centers on CO2 emissions (cpu, RAM, storage, networking). Currently only Azure and cpu. Compares on the avg. CO2 emissions per cpu core of selected VM instance types.
 """
 
 l1, r1 = st.columns(2)
@@ -72,7 +73,7 @@ with r1:
     list(df["dc_cq_id"].unique()).index("west_europe"))
 
     activity_sub_type = st.multiselect(
-        'Sub type',
+        'VM instance type',
         df["activity_sub_type"].unique())
 
     st.write('Latency range (estimated):', f"{calculate_latency_distance(latency)} KM")
@@ -108,24 +109,25 @@ latency_co2e_fig.update_traces(textposition="bottom right")
 st.plotly_chart(latency_co2e_fig)
 
 st.write("## Potential Savings")
+st.write(f"Moving to datacenter: {best_options_df['dc_cq_id'][0]}")
 l2, r2 = st.columns(2)
 with l2:
     num_inst = st.number_input("Number of instances", value=1, min_value=1)
     num_cpus = st.number_input("Number of cpus", value=4, min_value=1, max_value=1024)
 
 with r2:
-    day_hours = st.number_input("Hours on per day", value=4, min_value=1)
+    day_hours = st.number_input("Hours on per day", value=4, min_value=1, max_value=24)
     days_week = st.number_input("Days per week", value=7, min_value=1, max_value=7)
 
 
 with l2:
     current_co2e_year = (days_week/7)*day_hours*365*num_inst*num_cpus*current_emissions
     st.metric("Current yearly emissions (kg CO2)", f"{round(current_co2e_year, 2)}")
-    st.metric("Car KM equivalent", f"{get_co2_equivalent(current_co2e_year)}")
+    st.metric("Car KM equivalent (current)", f"{get_co2_equivalent(current_co2e_year)}")
 with r2:
     savings_year = (days_week/7)*day_hours*365*num_inst*num_cpus*best_co2e_delta
     st.metric("Potential yearly savings (kg CO2)", f"{round(savings_year, 2)}")
-    st.metric("Car KM saved", f"{get_co2_equivalent(savings_year)}")
+    st.metric("Car KM (saved)", f"{get_co2_equivalent(savings_year)}")
 
 
 
